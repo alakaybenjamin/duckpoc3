@@ -1,0 +1,122 @@
+<!-- Actions Menu - Hidden by default -->
+<div class="actions-menu mb-3 d-none">
+    <div class="d-flex justify-content-end">
+        <div class="dropdown">
+            <button class="btn btn-primary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                Actions
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end">
+                <li><a class="dropdown-item" href="#" id="addToCollectionMenuItem">
+                    <i class="bi bi-plus-circle me-2"></i>Add to Collection
+                </a></li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <!-- Filters Sidebar -->
+    <div class="col-md-3">
+        <div class="filters-container">
+            <h4>Filters</h4>
+
+            <!-- Category Filter -->
+            <div class="filter-group mb-3">
+                <h5>Category</h5>
+                <div class="btn-group d-flex" role="group">
+                    <button type="button" class="btn btn-outline-primary category-btn active" data-category="all">All</button>
+                    <button type="button" class="btn btn-outline-primary category-btn" data-category="studies">Studies</button>
+                    <button type="button" class="btn btn-outline-primary category-btn" data-category="indications">Indications</button>
+                    <button type="button" class="btn btn-outline-primary category-btn" data-category="procedures">Procedures</button>
+                </div>
+            </div>
+
+            <!-- Study Filters -->
+            <div class="filter-group mb-3" id="studyFilters">
+                <h5>Study Filters</h5>
+                <div class="mb-2">
+                    <label>Status</label>
+                    <select class="form-select" id="statusFilter">
+                        <option value="">All</option>
+                        <option value="Active">Active</option>
+                        <option value="Recruiting">Recruiting</option>
+                        <option value="Completed">Completed</option>
+                        <option value="Not yet recruiting">Not yet recruiting</option>
+                    </select>
+                </div>
+                <div class="mb-2">
+                    <label>Phase</label>
+                    <select class="form-select" id="phaseFilter">
+                        <option value="">All</option>
+                        <option value="Phase I">Phase I</option>
+                        <option value="Phase II">Phase II</option>
+                        <option value="Phase III">Phase III</option>
+                        <option value="Phase IV">Phase IV</option>
+                    </select>
+                </div>
+                <div class="mb-2">
+                    <label>Date Range</label>
+                    <input type="date" class="form-control mb-1" id="startDateFilter" placeholder="Start Date">
+                    <input type="date" class="form-control" id="endDateFilter" placeholder="End Date">
+                </div>
+            </div>
+
+            <!-- Indication Filters -->
+            <div class="filter-group mb-3" id="indicationFilters">
+                <h5>Indication Filters</h5>
+                <div class="mb-2">
+                    <label>Category</label>
+                    <select class="form-select" id="indicationCategoryFilter">
+                        <option value="">All</option>
+                        <option value="Cardiovascular">Cardiovascular</option>
+                        <option value="Neurological">Neurological</option>
+                        <option value="Psychiatric">Psychiatric</option>
+                        <option value="Autoimmune">Autoimmune</option>
+                        <option value="Endocrine">Endocrine</option>
+                    </select>
+                </div>
+                <div class="mb-2">
+                    <label>Severity</label>
+                    <select class="form-select" id="severityFilter">
+                        <option value="">All</option>
+                        <option value="Mild">Mild</option>
+                        <option value="Moderate">Moderate</option>
+                        <option value="Severe">Severe</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Procedure Filters -->
+            <div class="filter-group mb-3" id="procedureFilters">
+                <h5>Procedure Filters</h5>
+                <div class="mb-2">
+                    <label>Category</label>
+                    <select class="form-select" id="procedureCategoryFilter">
+                        <option value="">All</option>
+                        <option value="Surgical">Surgical</option>
+                        <option value="Diagnostic">Diagnostic</option>
+                        <option value="Therapeutic">Therapeutic</option>
+                    </select>
+                </div>
+                <div class="mb-2">
+                    <label>Risk Level</label>
+                    <select class="form-select" id="riskLevelFilter">
+                        <option value="">All</option>
+                        <option value="Low">Low</option>
+                        <option value="Medium">Medium</option>
+                        <option value="High">High</option>
+                    </select>
+                </div>
+                <div class="mb-2">
+                    <label>Duration (minutes)</label>
+                    <div class="input-group">
+                        <input type="number" class="form-control" id="minDurationFilter" placeholder="Min">
+                        <input type="number" class="form-control" id="maxDurationFilter" placeholder="Max">
+                    </div>
+                </div>
+            </div>
+
+            <button class="btn btn-secondary w-100" id="resetFilters">Reset Filters</button>
+        </div>
+    </div>
+</div>

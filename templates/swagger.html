@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{{ title }}</title>
+    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui.css">
+    <script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    <style>
+        /* Custom styles for error messages */
+        .swagger-ui .errors-wrapper {
+            margin: 20px 0;
+            padding: 10px;
+            border-radius: 4px;
+            background-color: #f8d7da;
+        }
+        .swagger-ui .errors-wrapper .error-wrapper {
+            margin: 5px 0;
+        }
+        /* Styles for auth token input */
+        .token-input-container {
+            margin: 10px 0;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+        .token-input-container input {
+            padding: 5px;
+            width: 300px;
+            margin-right: 10px;
+        }
+        .token-input-container button {
+            padding: 5px 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .token-input-container button:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <!-- Add token input field -->
+    <div class="token-input-container">
+        <label for="bearer-token">Bearer Token:</label>
+        <input type="text" id="bearer-token" placeholder="Enter your Bearer token">
+        <button onclick="setAuthToken()">Set Token</button>
+        <span id="token-status" style="margin-left: 10px;"></span>
+        {% if jwt_token %}
+        <div style="margin-top: 8px;">
+            <span style="color: blue;">✓ Using token from your session</span>
+            <button onclick="useSessionToken()" style="margin-left: 10px; background-color: #2196F3;">Use Session Token</button>
+        </div>
+        {% endif %}
+    </div>
+    <div id="swagger-ui"></div>
+    <script>
+        // Store JWT token from server (if available)
+        const serverJwtToken = {% if jwt_token %}"{{ jwt_token }}"{% else %}null{% endif %};
+        
+        // Function to use the token from the session cookie
+        function useSessionToken() {
+            if (serverJwtToken) {
+                localStorage.setItem('bearer_token', serverJwtToken);
+                document.getElementById('bearer-token').value = serverJwtToken;
+                document.getElementById('token-status').textContent = 'Using token from session';
+                document.getElementById('token-status').style.color = 'blue';
+                
+                // Update curl commands immediately and then reload
+                updateCurlCommands();
+                setTimeout(() => location.reload(), 1000);
+            }
+        }
+        
+        // Function to save token and update UI
+        function setAuthToken() {
+            const token = document.getElementById('bearer-token').value.trim();
+            if (token) {
+                localStorage.setItem('bearer_token', token);
+                document.getElementById('token-status').textContent = 'Token set!';
+                document.getElementById('token-status').style.color = 'green';
+                
+                // Update curl commands immediately and then reload
+                updateCurlCommands();
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                document.getElementById('token-status').textContent = 'Please enter a token';
+                document.getElementById('token-status').style.color = 'red';
+            }
+        }
+
+        // Load saved token on page load
+        window.onload = function() {
+            // Check for saved token
+            const savedToken = localStorage.getItem('bearer_token');
+            if (savedToken) {
+                document.getElementById('bearer-token').value = savedToken;
+                document.getElementById('token-status').textContent = 'Token loaded';
+                document.getElementById('token-status').style.color = 'green';
+            } 
+            // If no saved token but server token is available, offer to use it
+            else if (serverJwtToken) {
+                document.getElementById('token-status').textContent = 'Session token available';
+                document.getElementById('token-status').style.color = 'blue';
+            }
+
+            SwaggerUIBundle({
+                url: "{{ openapi_url }}",
+                dom_id: '#swagger-ui',
+                deepLinking: true,
+                layout: "BaseLayout",
+                showExtensions: true,
+                showCommonExtensions: true,
+                defaultModelsExpandDepth: 1,
+                defaultModelExpandDepth: 1,
+                withCredentials: true,
+                presets: [
+                    SwaggerUIBundle.presets.apis,
+                    SwaggerUIBundle.SwaggerUIStandalonePreset
+                ],
+                plugins: [
+                    SwaggerUIBundle.plugins.DownloadUrl
+                ],
+                requestInterceptor: (req) => {
+                    // Add CSRF token to requests
+                    const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+                    req.headers['X-CSRF-Token'] = csrfToken;
+                    
+                    // Add Bearer token if available
+                    const bearerToken = localStorage.getItem('bearer_token');
+                    if (bearerToken) {
+                        req.headers['Authorization'] = `Bearer ${bearerToken}`;
+                        console.log('Added Authorization header to request', req.url);
+                    } else {
+                        console.warn('No bearer token available for request', req.url);
+                    }
+                    
+                    // Log the final headers for debugging
+                    console.debug('Request headers:', JSON.stringify(req.headers));
+                    
+                    return req;
+                },
+                oauth2RedirectUrl: window.location.origin + "/api/auth/callback",
+                onComplete: function() {
+                    console.log("Swagger UI initialized successfully");
+                    
+                    // Update curl commands to include Authorization header
+                    updateCurlCommands();
+                    
+                    // Observe for new curl commands that might be generated later
+                    observeCurlCommands();
+                },
+                defaultModelRendering: 'model',
+                validatorUrl: null,
+                filter: true,
+                operationsSorter: 'alpha'
+            });
+        }
+        
+        // Function to update curl commands displayed in the UI to include the Authorization header
+        function updateCurlCommands() {
+            setTimeout(() => {
+                const bearerToken = localStorage.getItem('bearer_token');
+                if (!bearerToken) return;
+                
+                // Find all curl command elements
+                const curlElements = document.querySelectorAll('pre.curl');
+                curlElements.forEach(el => {
+                    let curlText = el.textContent;
+                    
+                    // Only add Authorization if it's not already there
+                    if (!curlText.includes('-H \'Authorization:')) {
+                        // Find position to insert the Authorization header (after other headers)
+                        const headersEndPos = curlText.lastIndexOf('-H ') + 2; // Find last header
+                        const headerEndLine = curlText.indexOf('\'', headersEndPos) + 1;
+                        if (headerEndLine > 0) {
+                            // Insert Authorization header after the last header
+                            const before = curlText.substring(0, headerEndLine);
+                            const after = curlText.substring(headerEndLine);
+                            curlText = before + ' \\\n  -H \'Authorization: Bearer ' + bearerToken + '\'' + after;
+                            el.textContent = curlText;
+                        }
+                    }
+                });
+            }, 1000); // Small delay to ensure the UI is fully rendered
+        }
+        
+        // Set up a mutation observer to watch for new curl commands that might be added dynamically
+        function observeCurlCommands() {
+            // Create a mutation observer to watch for changes in the DOM
+            const observer = new MutationObserver(mutations => {
+                mutations.forEach(mutation => {
+                    // If new curl elements are added, update them
+                    if (mutation.addedNodes.length) {
+                        updateCurlCommands();
+                    }
+                });
+            });
+            
+            // Start observing the swagger-ui element for changes
+            const targetNode = document.getElementById('swagger-ui');
+            observer.observe(targetNode, { childList: true, subtree: true });
+        }
+    </script>
+</body>
+</html>

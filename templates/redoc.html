@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{{ title }}</title>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    <link href="https://fonts.googleapis.com/css?family=Montserrat:300,400,700|Roboto:300,400,700" rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+        }
+    </style>
+</head>
+<body>
+    <redoc spec-url="{{ openapi_url }}"></redoc>
+    <script src="https://cdn.jsdelivr.net/npm/redoc@next/bundles/redoc.standalone.js"></script>
+    <script>
+        // Add CSRF token to API requests
+        const originalFetch = window.fetch;
+        window.fetch = function(url, options = {}) {
+            if (!options.headers) {
+                options.headers = {};
+            }
+            
+            // Add CSRF token
+            const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+            options.headers['X-CSRF-Token'] = csrfToken;
+            
+            // Add JWT token if available
+            {% if jwt_token %}
+            options.headers['Authorization'] = 'Bearer {{ jwt_token }}';
+            console.log('Added JWT token to request');
+            {% endif %}
+            
+            return originalFetch(url, options);
+        };
+    </script>
+</body>
+</html> 
