@@ -1,0 +1,218 @@
+@startuml "Medical Search Engine System"
+!theme plain
+title Medical Search Engine - System Interactions
+
+actor User
+participant "Frontend" as FE
+participant "Auth Routes" as AuthRoutes
+participant "Search API" as SearchAPI
+participant "History API" as HistAPI
+participant "SavedSearch API" as SSAPI
+participant "Collection API" as CollAPI
+participant "Auth Service" as AuthService
+participant "SearchService" as SrchSvc
+participant "SearchProvider" as SrchProv
+participant "SchemaTransformer" as Schema
+participant "HistoryService" as HistSvc
+participant "SavedSearchService" as SSSvc
+participant "CollectionService" as CollSvc
+participant "Database" as DB
+
+' Section dividers and styling
+skinparam SequenceBoxBorderColor #28a745
+skinparam SequenceBoxBackgroundColor #f9fafb
+skinparam SequenceBoxFontSize 14
+skinparam SequenceBoxFontColor #333333
+
+' ====== AUTHENTICATION SECTION ======
+box "Authentication Flow" #f9fafb
+    participant AuthRoutes
+    participant AuthService
+end box
+
+group Authentication
+    User -> FE: Enter credentials
+    FE -> AuthRoutes: POST /auth/login
+    AuthRoutes -> AuthService: Validate credentials
+    AuthService -> DB: Query user data
+    DB --> AuthService: Return user data
+    AuthService -> AuthService: Verify password
+    alt Authentication successful
+        AuthService -> AuthService: Generate JWT token
+        AuthService --> AuthRoutes: Return token
+        AuthRoutes --> FE: Return token + user info
+        FE -> FE: Store token in localStorage
+        FE --> User: Redirect to dashboard
+    else Authentication failed
+        AuthService --> AuthRoutes: Authentication error
+        AuthRoutes --> FE: Return error response
+        FE --> User: Show error message
+    end
+end
+
+' ====== SEARCH SECTION ======
+box "Search Process" #f9fafb
+    participant SearchAPI
+    participant SrchSvc
+    participant SrchProv
+    participant Schema
+end box
+
+group Search Process
+    User -> FE: Enter search query
+    FE -> SearchAPI: POST /api/search
+    SearchAPI -> SrchSvc: search(terms, filters, page, per_page)
+    SrchSvc -> SrchProv: Get appropriate provider
+    SrchProv -> DB: Execute search query
+    DB --> SrchProv: Return raw results
+    SrchProv -> SrchProv: Process results
+    SrchProv --> SrchSvc: Return processed results
+    SrchSvc -> Schema: Transform results to desired format
+    Schema --> SrchSvc: Return formatted results
+    
+    alt User is authenticated
+        SearchAPI -> HistSvc: Save search to history (async)
+        HistSvc -> DB: Create history entry
+        DB --> HistSvc: Return history ID
+        HistSvc --> SearchAPI: Return history ID
+        SearchAPI -> SearchAPI: Add history ID to results
+    end
+    
+    SearchAPI --> FE: Return search results with pagination
+    FE -> FE: Display results and pagination
+    FE --> User: Show search results
+end
+
+' ====== SEARCH HISTORY SECTION ======
+box "Search History Management" #f9fafb
+    participant HistAPI
+    participant HistSvc
+end box
+
+group View Search History
+    User -> FE: Request search history
+    FE -> HistAPI: GET /api/search-history?page=1&per_page=10
+    HistAPI -> HistSvc: get_search_history(user_id, page, per_page)
+    HistSvc -> DB: Query search history with pagination
+    DB --> HistSvc: Return history entries
+    HistSvc -> HistSvc: Format pagination metadata
+    HistSvc --> HistAPI: Return paginated history
+    HistAPI --> FE: Return formatted history data
+    FE -> FE: Display history entries
+    FE --> User: Show search history
+end
+
+group Save Search From History
+    User -> FE: Click "Save" on history item
+    FE -> HistAPI: POST /api/search-history/save
+    HistAPI -> HistSvc: save_search(search_id, name)
+    HistSvc -> DB: Update is_saved flag and name
+    DB --> HistSvc: Confirm update
+    HistSvc --> HistAPI: Return success
+    HistAPI --> FE: Return success message
+    FE --> User: Show confirmation
+end
+
+' ====== SAVED SEARCHES SECTION ======
+box "Saved Searches Management" #f9fafb
+    participant SSAPI
+    participant SSSvc
+end box
+
+group View Saved Searches
+    User -> FE: Request saved searches
+    FE -> SSAPI: GET /api/saved-searches?page=1&per_page=10
+    SSAPI -> SSSvc: get_saved_searches(user_id, page, per_page)
+    SSSvc -> DB: Query saved searches with pagination
+    DB --> SSSvc: Return saved searches
+    SSSvc -> SSSvc: Format pagination metadata
+    SSSvc --> SSAPI: Return paginated saved searches
+    SSAPI --> FE: Return formatted saved searches
+    FE -> FE: Display saved searches
+    FE --> User: Show saved searches list
+end
+
+group Execute Saved Search
+    User -> FE: Click "Execute" on saved search
+    FE -> SSAPI: POST /api/saved-searches/{id}/execute
+    SSAPI -> SSSvc: execute_saved_search(search_id)
+    SSSvc -> DB: Get saved search details
+    DB --> SSSvc: Return search query, filters
+    SSSvc -> SrchSvc: Execute search with saved parameters
+    SrchSvc -> DB: Execute search query
+    DB --> SrchSvc: Return results
+    SrchSvc --> SSSvc: Return search results
+    SSSvc -> DB: Update last_used and use_count
+    DB --> SSSvc: Confirm update
+    SSSvc --> SSAPI: Return search results
+    SSAPI --> FE: Return search results
+    FE -> FE: Display search results
+    FE --> User: Show search results
+end
+
+group Delete Saved Search
+    User -> FE: Click "Delete" on saved search
+    FE -> SSAPI: DELETE /api/saved-searches/{id}
+    SSAPI -> SSSvc: delete_saved_search(search_id)
+    SSSvc -> DB: Update is_saved = false or delete entry
+    DB --> SSSvc: Confirm deletion
+    SSSvc --> SSAPI: Return success
+    SSAPI --> FE: Return success message
+    FE -> FE: Remove item from display
+    FE --> User: Show confirmation
+end
+
+' ====== COLLECTION MANAGEMENT SECTION ======
+box "Collection Management" #f9fafb
+    participant CollAPI
+    participant CollSvc
+end box
+
+group View Collections
+    User -> FE: Request collections
+    FE -> CollAPI: GET /api/collections?page=1&per_page=10
+    CollAPI -> CollSvc: get_collections(user_id, page, per_page)
+    CollSvc -> DB: Query collections with pagination
+    DB --> CollSvc: Return collections
+    CollSvc -> CollSvc: Format pagination metadata
+    CollSvc --> CollAPI: Return paginated collections
+    CollAPI --> FE: Return formatted collections
+    FE -> FE: Display collections
+    FE --> User: Show collections list
+end
+
+group Create Collection
+    User -> FE: Enter collection details and submit
+    FE -> CollAPI: POST /api/collections
+    CollAPI -> CollSvc: create_collection(name, description)
+    CollSvc -> DB: Insert new collection
+    DB --> CollSvc: Return new collection ID
+    CollSvc --> CollAPI: Return success with ID
+    CollAPI --> FE: Return confirmation
+    FE --> User: Show success message
+end
+
+group Add Item to Collection
+    User -> FE: Select item and collection
+    FE -> CollAPI: POST /api/collections/{id}/items
+    CollAPI -> CollSvc: add_item(collection_id, item_id)
+    CollSvc -> DB: Insert collection item
+    DB --> CollSvc: Confirm insertion
+    CollSvc --> CollAPI: Return success
+    CollAPI --> FE: Return success message
+    FE --> User: Show confirmation
+end
+
+group Remove Item from Collection
+    User -> FE: Click remove on collection item
+    FE -> CollAPI: DELETE /api/collections/{collection_id}/items/{item_id}
+    CollAPI -> CollSvc: remove_item(collection_id, item_id)
+    CollSvc -> DB: Delete collection item
+    DB --> CollSvc: Confirm deletion
+    CollSvc --> CollAPI: Return success
+    CollAPI --> FE: Return success message
+    FE -> FE: Remove item from display
+    FE --> User: Show confirmation
+end
+
+@enduml
